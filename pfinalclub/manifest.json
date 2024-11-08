@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "PFinalClub Archives",
+  "version": "1.0",
+  "description": "Enhanced display for PFinalClub archives",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "*://friday-go.icu/*"
+  ],
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "icons": {
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://friday-go.icu/archives/*"],
+      "js": ["content.js"],
+      "css": ["dist/style.css"]
+    }
+  ]
+} 

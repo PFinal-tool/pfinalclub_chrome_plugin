@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>New Tab - PFinalClub</title>
+    <link rel="stylesheet" href="dist/style.css">
+</head>
+<body class="bg-gray-50 dark:bg-gray-900">
+    <div id="app" class="min-h-screen">
+        <header class="bg-white dark:bg-gray-800 shadow-md">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <!-- 标题和操作栏 -->
+                <div class="flex justify-between items-center mb-4">
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">PFinalClub</h1>
+                </div>
+                
+                <!-- 搜索和按钮组合 -->
+                <div class="flex items-center space-x-4">
+                    <!-- 搜索框容器 -->
+                    <div class="flex-1 relative">
+                        <input type="search" 
+                               id="searchInput" 
+                               class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white pr-10" 
+                               placeholder="搜索文章... (Ctrl/⌘ + K)">
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- 按钮组 -->
+                    <div class="flex items-center space-x-2">
+                        <!-- 刷新按钮 -->
+                        <button id="refreshBtn" class="btn-primary flex items-center px-4 py-2" title="刷新 (Ctrl/⌘ + R)">
+                            <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span>刷新</span>
+                        </button>
+
+                        <!-- 主题切换按钮 -->
+                        <button id="themeToggle" class="btn-secondary flex items-center px-4 py-2" title="切换主题">
+                            <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                            </svg>
+                            <span>暗色</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 快捷键提示 -->
+                <div class="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+                    快捷键: 
+                    <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">Ctrl/⌘ + K</kbd> 搜索
+                    <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs ml-2">Ctrl/⌘ + R</kbd> 刷新
+                    <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs ml-2">Esc</kbd> 清空搜索
+                </div>
+            </div>
+        </header>
+
+        <!-- 在线状态提示 -->
+        <div id="onlineStatus" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4"></div>
+
+        <!-- 主要内容区域 -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div id="content" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+                <!-- 内容将由 JavaScript 动态填充 -->
+            </div>
+        </main>
+    </div>
+    <script src="newtab.js"></script>
+</body>
+</html> 
