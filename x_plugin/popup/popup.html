@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Twitter Collector</title>
+  <link rel="stylesheet" href="popup.css">
+  <script src="../lib/marked.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Twitter Collector</h1>
+      <nav>
+        <button data-tab="tweets" class="active">已收藏</button>
+        <button data-tab="stats">统计</button>
+        <button data-tab="categories">分类管理</button>
+        <button data-tab="article">生成文章</button>
+      </nav>
+    </header>
+
+    <main>
+      <!-- 已收藏的推文列表 -->
+      <section id="tweets" class="tab-content active">
+        <div id="batchOperations" class="batch-operations"></div>
+        <div class="tweet-filters">
+          <select id="categoryFilter">
+            <option value="">全部分类</option>
+          </select>
+          <select id="sentimentFilter">
+            <option value="">全部情感</option>
+            <option value="positive">正面</option>
+            <option value="negative">负面</option>
+            <option value="neutral">中立</option>
+          </select>
+        </div>
+        <div id="tweetList" class="tweet-list"></div>
+      </section>
+
+      <!-- 统计面板 -->
+      <section id="stats" class="tab-content">
+        <div id="statsPanel">
+          <!-- 统计信息将通过 JavaScript 动态插入到这里 -->
+        </div>
+      </section>
+
+      <!-- 分类管理 -->
+      <section id="categories" class="tab-content">
+        <div class="category-manager">
+          <div class="add-category">
+            <input type="text" id="newCategory" placeholder="新建分类">
+            <button id="addCategory">添加</button>
+          </div>
+          <ul id="categoryList" class="category-list"></ul>
+        </div>
+      </section>
+
+      <!-- 文章生成 -->
+      <section id="article" class="tab-content">
+        <div class="article-generator">
+          <div class="selected-tweets">
+            <h3>已选择的推文</h3>
+            <div id="selectedTweets"></div>
+          </div>
+          <div class="article-options">
+            <button id="generateArticle">生成文章</button>
+            <button id="exportMarkdown">导出 Markdown</button>
+          </div>
+          <div id="articlePreview" class="article-preview"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html> 

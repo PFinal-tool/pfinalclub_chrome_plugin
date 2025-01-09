@@ -1,0 +1,634 @@
+body {
+  width: 400px;
+  min-height: 500px;
+  margin: 0;
+  padding: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+header {
+  margin-bottom: 16px;
+}
+
+h1 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+
+nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+nav button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background: #f0f0f0;
+  cursor: pointer;
+}
+
+nav button.active {
+  background: #1da1f2;
+  color: white;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.tweet-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tweet-item {
+  padding: 16px;
+  border-bottom: 1px solid #e6ecf0;
+  transition: background-color 0.2s ease;
+}
+
+.tweet-item:last-child {
+  border-bottom: none;
+}
+
+.tweet-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  align-items: flex-start;
+}
+
+.category-manager {
+  padding: 16px 0;
+}
+
+.add-category {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.category-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.category-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #e6ecf0;
+}
+
+.article-generator {
+  padding: 16px;
+}
+
+.selected-tweets {
+  margin-bottom: 24px;
+}
+
+.article-options {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.article-preview {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 20px;
+  margin-top: 16px;
+}
+
+.loading {
+  color: #6c757d;
+  text-align: center;
+  padding: 20px;
+}
+
+.error {
+  color: #dc3545;
+  text-align: center;
+  padding: 20px;
+}
+
+.article-content {
+  line-height: 1.6;
+}
+
+.article-meta {
+  color: #6c757d;
+  font-size: 0.9em;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.article-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e9ecef;
+}
+
+.article-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  background: #e8f4ff;
+  color: #1da1f2;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+/* Markdown 内容样式 */
+.article-content h1 {
+  font-size: 1.8em;
+  margin: 1em 0 0.5em;
+}
+
+.article-content h2 {
+  font-size: 1.5em;
+  margin: 1em 0 0.5em;
+}
+
+.article-content h3 {
+  font-size: 1.2em;
+  margin: 1em 0 0.5em;
+}
+
+.article-content p {
+  margin: 0.8em 0;
+}
+
+.article-content blockquote {
+  border-left: 4px solid #e9ecef;
+  margin: 1em 0;
+  padding-left: 1em;
+  color: #6c757d;
+}
+
+.article-content code {
+  background: #f8f9fa;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.article-content pre {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.tweet-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tweet-author {
+  font-weight: bold;
+  flex: 1;
+}
+
+.tweet-time {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.tweet-sentiment {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.tweet-sentiment.positive {
+  background: #e3f9e5;
+  color: #198754;
+}
+
+.tweet-sentiment.negative {
+  background: #ffe3e3;
+  color: #dc3545;
+}
+
+.tweet-sentiment.neutral {
+  background: #e9ecef;
+  color: #495057;
+}
+
+select.tweet-category {
+  min-width: 120px;
+}
+
+button {
+  padding: 6px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: white;
+  color: #495057;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+button:hover {
+  background: #f8f9fa;
+  border-color: #c1c9d0;
+}
+
+button.active {
+  background: #1da1f2;
+  color: white;
+  border-color: #1da1f2;
+}
+
+button.danger {
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+button.danger:hover {
+  background: #dc3545;
+  color: white;
+}
+
+.stats-summary {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-item {
+  flex: 1;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.9em;
+  color: #6c757d;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #1da1f2;
+}
+
+.stats-categories {
+  margin-bottom: 16px;
+}
+
+.category-stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.sentiment-bars {
+  display: flex;
+  height: 24px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sentiment-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.8em;
+  transition: width 0.3s ease;
+}
+
+.batch-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.batch-categories {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.danger {
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+.danger:hover {
+  background: #dc3545;
+  color: white;
+}
+
+.tweet-text {
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
+
+.tweet-source {
+  color: #666;
+  font-size: 0.9em;
+  margin: 4px 0;
+}
+
+.tweet-url {
+  margin: 4px 0;
+}
+
+.tweet-url a {
+  color: #1da1f2;
+  text-decoration: none;
+}
+
+.tweet-url a:hover {
+  text-decoration: underline;
+}
+
+.tweet-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 批量操作相关样式 */
+.batch-operations {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.batch-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.batch-categories {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+#batchCategory {
+  min-width: 180px;
+  max-width: 300px;
+  min-height: 36px;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: white;
+}
+
+#batchCategory option {
+  padding: 4px 8px;
+  margin: 2px 0;
+  border-radius: 2px;
+}
+
+#batchCategory option:checked {
+  background: #e8f4ff;
+  color: #1da1f2;
+}
+
+/* 统计页面样式 */
+.stats-panel {
+  padding: 16px;
+}
+
+.stats-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-item {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.stat-label {
+  color: #6c757d;
+  font-size: 0.9em;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.stat-value {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #1da1f2;
+}
+
+.stats-section {
+  margin-bottom: 24px;
+}
+
+.stats-section h4 {
+  margin: 0 0 16px;
+  color: #343a40;
+  font-size: 1.1em;
+}
+
+.category-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.category-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+}
+
+.category-name {
+  color: #495057;
+}
+
+.category-count {
+  font-weight: bold;
+  color: #1da1f2;
+}
+
+.sentiment-stats {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.sentiment-bars {
+  height: 24px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  margin-top: 12px;
+}
+
+.sentiment-bar {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.9em;
+  transition: width 0.3s ease;
+}
+
+.sentiment-bar.positive {
+  background: #28a745;
+}
+
+.sentiment-bar.neutral {
+  background: #6c757d;
+}
+
+.sentiment-bar.negative {
+  background: #dc3545;
+}
+
+.sentiment-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.9em;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+/* 分类选择相关样式 */
+.tweet-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.tweet-filters select {
+  min-width: 120px;
+  padding: 6px 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: white;
+  font-size: 14px;
+  color: #495057;
+}
+
+.tweet-category {
+  min-width: 150px !important;
+  max-width: 250px;
+  min-height: 36px;
+  max-height: 100px;
+  overflow-y: auto;
+  padding: 4px !important;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: white;
+}
+
+.tweet-category option {
+  padding: 4px 8px;
+  margin: 2px 0;
+  border-radius: 2px;
+}
+
+.tweet-category option:checked {
+  background: #e8f4ff;
+  color: #1da1f2;
+}
+
+.tweet-category:focus {
+  border-color: #1da1f2;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(29, 161, 242, 0.25);
+}
+
+/* 滚动条美化 */
+.tweet-category::-webkit-scrollbar,
+#batchCategory::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tweet-category::-webkit-scrollbar-track,
+#batchCategory::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.tweet-category::-webkit-scrollbar-thumb,
+#batchCategory::-webkit-scrollbar-thumb {
+  background: #c1c9d0;
+  border-radius: 3px;
+}
+
+.tweet-category::-webkit-scrollbar-thumb:hover,
+#batchCategory::-webkit-scrollbar-thumb:hover {
+  background: #a8b2bc;
+}
+
+/* 复选框美化 */
+.tweet-select {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.tweet-select:checked {
+  accent-color: #1da1f2;
+} 
