@@ -47,6 +47,9 @@ class PopupManager {
     // 生成文章
     document.getElementById('generateArticle').addEventListener('click', () => this.generateArticle());
     document.getElementById('exportMarkdown').addEventListener('click', () => this.exportToMarkdown());
+  
+    // 复制文章
+    document.getElementById('copyButton').addEventListener('click', () => this.copyToClipboard());
   }
 
   switchTab(tabId) {
@@ -165,7 +168,17 @@ class PopupManager {
         ${this.getCategoryOptions()}
       `;
     });
+
+    const categoryList = document.getElementById('categoryList');
+    categoryList.innerHTML = `
+      <div class="category-list">
+        ${this.getCategoryOptions()}
+      </div>
+    `;
+
   }
+
+
 
   async addNewCategory() {
     const input = document.getElementById('newCategory');
@@ -255,55 +268,7 @@ class PopupManager {
 4. 提供 3-5 个相关标签，便于分类与检索。  
 5. 使用 Markdown 格式编写，确保易于复制与阅读。`;
     try {
-      // 使用 Hugging Face Inference API
-      const response = await fetch('https://api-inference.huggingface.co/models/microsoft/phi-4/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await this.getHuggingFaceKey()}`
-        },
-        body: JSON.stringify({
-          model: "microsoft/phi-4",
-          messages:[
-            {
-              role: "user",
-              content: [
-                {
-                  text: prompt,
-                  type: "markdown"
-                }
-              ]
-            }
-          ],
-          max_tokens: 500,
-          stream: true
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('API 调用失败: ' + response.statusText);
-      }
-
-      const data = await response.json();
-      const content = data[0].generated_text;
-
-      // 解析返回的 Markdown 内容和标签
-      const tags = this.extractTags(content);
-      
-      // 检查 marked 是否可用
-      if (typeof marked !== 'function') {
-        console.error('marked 库未正确加载');
-        // 返回原始内容，确保不会完全失败
-        return {
-          content: `<pre>${content}</pre>`,
-          tags
-        };
-      }
-      
-      return {
-        content: marked(content),
-        tags
-      };
+      return this.generateLocalArticle(articleData,prompt);
     } catch (error) {
       console.error('生成文章失败:', error);
       // 如果 API 调用失败，使用本地模板生成简单文章
@@ -366,6 +331,17 @@ class PopupManager {
     // 从文章内容中提取标签
     const tagMatch = content.match(/#[\w\u4e00-\u9fa5]+/g);
     return tagMatch ? tagMatch.map(t => t.slice(1)) : [];
+  }
+
+  async copyToClipboard() {
+    const articleContent = document.getElementById('articlePreview').textContent;
+    if (!articleContent || articleContent.includes('正在生成文章...')) {
+      alert('请先生成文章');
+      return;
+    }
+
+    await navigator.clipboard.writeText(articleContent);
+    alert('文章已复制到剪贴板');
   }
 
   async exportToMarkdown() {
