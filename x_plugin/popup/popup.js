@@ -193,15 +193,6 @@ class PopupManager {
       return;
     }
 
-       // 检查 marked 是否可用
-    if (typeof marked === 'undefined') {
-        console.error('Marked library not loaded');
-        alert('Markdown 解析库未加载，请刷新页面重试');
-        return;
-    }else{
-      console.log("marked is not a function")
-    }
-
     const articlePreview = document.getElementById('articlePreview');
     articlePreview.innerHTML = '<p class="loading">正在生成文章...</p>';
 
@@ -250,37 +241,42 @@ class PopupManager {
 
   async callOpenAI(articleData) {
     // 构建 prompt
-    const prompt = `请根据以下内容生成一篇文章：
+    const prompt = `根据以下内容生成一篇高质量的技术文章：
+    
+**主题**： ${articleData.tweets.map(t => `- ${t.text}`).join('\n')}
 
-内容列表：
-${articleData.tweets.map(t => `- ${t.text} (来源：${t.author})`).join('\n')}
+**分类**：${articleData.categories.join(', ')}
 
-相关分类：${articleData.categories.join(', ')}
+**要求**：
 
-要求：
-1. 生成一篇连贯的文章，自然地整合所有内容
-2. 添加适当的标题和小标题
-3. 保持原始内容的观点和意思
-4. 添加必要的过渡和连接语
-5. 生成3-5个合适的标签
-6. 使用 Markdown 格式`;
-
+1. 生成一篇结构清晰、内容连贯的技术文章。  
+2. 包含一个主标题和多个小标题，适合开发者快速理解和实操。  
+3. 保留原始内容的观点与核心思想，并自然整合必要的过渡语。  
+4. 提供 3-5 个相关标签，便于分类与检索。  
+5. 使用 Markdown 格式编写，确保易于复制与阅读。`;
     try {
       // 使用 Hugging Face Inference API
-      const response = await fetch('https://api-inference.huggingface.co/pfinal/meta-llama-Llama-3.3-70B-Instruct/chat', {
+      const response = await fetch('https://api-inference.huggingface.co/models/microsoft/phi-4/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${await this.getHuggingFaceKey()}`
         },
         body: JSON.stringify({
-          inputs: prompt,
-          parameters: {
-            max_length: 2048,
-            temperature: 0.7,
-            top_p: 0.9,
-            do_sample: true
-          }
+          model: "microsoft/phi-4",
+          messages:[
+            {
+              role: "user",
+              content: [
+                {
+                  text: prompt,
+                  type: "markdown"
+                }
+              ]
+            }
+          ],
+          max_tokens: 500,
+          stream: true
         })
       });
 
@@ -293,6 +289,17 @@ ${articleData.tweets.map(t => `- ${t.text} (来源：${t.author})`).join('\n')}
 
       // 解析返回的 Markdown 内容和标签
       const tags = this.extractTags(content);
+      
+      // 检查 marked 是否可用
+      if (typeof marked !== 'function') {
+        console.error('marked 库未正确加载');
+        // 返回原始内容，确保不会完全失败
+        return {
+          content: `<pre>${content}</pre>`,
+          tags
+        };
+      }
+      
       return {
         content: marked(content),
         tags
@@ -300,7 +307,7 @@ ${articleData.tweets.map(t => `- ${t.text} (来源：${t.author})`).join('\n')}
     } catch (error) {
       console.error('生成文章失败:', error);
       // 如果 API 调用失败，使用本地模板生成简单文章
-      return this.generateLocalArticle(articleData);
+      return this.generateLocalArticle(articleData,prompt);
     }
   }
 
@@ -316,7 +323,7 @@ ${articleData.tweets.map(t => `- ${t.text} (来源：${t.author})`).join('\n')}
   }
 
   // 本地文章生成（作为备选方案）
-  generateLocalArticle(articleData) {
+  generateLocalArticle(articleData,prompt) {
     const title = `${articleData.categories[0] || '内容'} 汇总`;
     const date = new Date().toLocaleDateString();
     
@@ -348,7 +355,7 @@ ${articleData.tweets.map(t => `- ${t.text} (来源：${t.author})`).join('\n')}
     `;
 
     return {
-      content: marked(content),
+      content: marked(prompt),
       tags: ['内容汇总', articleData.categories[0] || '资料', 
              articleData.tweets[0].source || '网络', 
              new Date().getFullYear().toString()]
