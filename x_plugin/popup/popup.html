@@ -57,9 +57,19 @@
       <!-- 文章生成 -->
       <section id="article" class="tab-content">
         <div class="article-generator">
-          <div class="selected-tweets">
-            <h3>已选择的推文</h3>
-            <div id="selectedTweets"></div>
+          <div class="prompt-selector">
+            <select id="promptSelect">
+              <option value="">选择 Prompt 模板</option>
+              <optgroup label="内置模板">
+                <!-- 内置的 prompts 将通过 JS 动态添加 -->
+              </optgroup>
+              <optgroup label="自定义模板">
+                <!-- 用户自定义的 prompts 将通过 JS 动态添加 -->
+              </optgroup>
+            </select>
+            <button id="addCustomPrompt">添加模板</button>
+            <button id="editPrompt">编辑</button>
+            <button id="deletePrompt">删除</button>
           </div>
           <div class="article-options">
             <button id="generateArticle">生成文章</button>

@@ -1,5 +1,6 @@
 import TweetStorage from '../utils/storage.js';
 import TweetManager from '../utils/tweetManager.js';
+import PromptManager from '../utils/promptManager.js';
 
 class PopupManager {
   constructor() {
@@ -12,6 +13,7 @@ class PopupManager {
     try {
       await this.loadCategories();
       await this.loadTweets();
+      await this.loadPrompts();
       this.setupTabNavigation();
       this.setupEventListeners();
       this.setupBatchOperations();
@@ -50,6 +52,11 @@ class PopupManager {
   
     // 复制文章
     document.getElementById('copyButton').addEventListener('click', () => this.copyToClipboard());
+
+    // 添加 prompt 相关的事件监听
+    document.getElementById('addCustomPrompt').addEventListener('click', () => this.showPromptDialog());
+    document.getElementById('editPrompt').addEventListener('click', () => this.editSelectedPrompt());
+    document.getElementById('deletePrompt').addEventListener('click', () => this.deleteSelectedPrompt());
   }
 
   switchTab(tabId) {
@@ -92,20 +99,27 @@ class PopupManager {
       <div class="tweet-url"><a href="${tweet.url}" target="_blank">原文链接</a></div>
     `;
 
-    // 只有当有分类时才显示分类选择器
+    // 优化分类选择器的显示
     if (this.categories && this.categories.length > 0) {
       html += `
         <div class="tweet-actions">
-          <select class="tweet-category" multiple>
-            ${this.getCategoryOptions(tweet.categories || [])}
-          </select>
-          <button class="delete-tweet">删除</button>
+          <div class="category-selector-wrapper">
+            <select class="tweet-category" multiple title="按住 Ctrl/Command 键可多选">
+              ${this.getCategoryOptions(tweet.categories || [])}
+            </select>
+            <div class="selected-categories">
+              ${(tweet.categories || []).map(cat => 
+                `<span class="category-tag">${cat}</span>`
+              ).join('')}
+            </div>
+          </div>
+          <button class="delete-tweet danger">删除</button>
         </div>
       `;
     } else {
       html += `
         <div class="tweet-actions">
-          <button class="delete-tweet">删除</button>
+          <button class="delete-tweet danger">删除</button>
         </div>
       `;
     }
@@ -117,12 +131,24 @@ class PopupManager {
       TweetStorage.toggleTweetSelection(tweet.id);
     });
 
-    // 只有当有分类选择器时才添加分类相关的事件监听
+    // 分类选择器的事件处理
     const categorySelect = div.querySelector('.tweet-category');
     if (categorySelect) {
+      // 选择变化时更新显示的标签
       categorySelect.addEventListener('change', (e) => {
         const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value);
         this.updateTweetCategories(tweet.id, selectedOptions);
+        
+        // 更新显示的标签
+        const categoriesDisplay = div.querySelector('.selected-categories');
+        categoriesDisplay.innerHTML = selectedOptions.map(cat => 
+          `<span class="category-tag">${cat}</span>`
+        ).join('');
+      });
+
+      // 鼠标悬停时显示提示
+      categorySelect.addEventListener('mouseover', () => {
+        categorySelect.title = '按住 Ctrl/Command 键可多选';
       });
     }
 
@@ -150,6 +176,7 @@ class PopupManager {
   async loadCategories() {
     try {
       this.categories = await TweetStorage.getCategories();
+      this.updateCategoryList();
     } catch (error) {
       console.error('加载分类失败:', error);
       this.categories = [];
@@ -163,21 +190,69 @@ class PopupManager {
 
     const selectors = document.querySelectorAll('.tweet-category, #categoryFilter');
     selectors.forEach(selector => {
+      const selectedValues = Array.from(selector.selectedOptions).map(opt => opt.value);
       selector.innerHTML = `
-        <option value="">全部分类</option>
-        ${this.getCategoryOptions()}
+        ${selector.id === 'categoryFilter' ? '<option value="">全部分类</option>' : ''}
+        ${this.getCategoryOptions(selectedValues)}
+      `;
+    });
+  }
+
+  updateCategoryList() {
+    if (!this.categories || this.categories.length === 0) {
+      return;
+    }
+    const categoryList = document.getElementById('categoryList');
+    let html = '<ul class="category-list">';
+    this.categories.forEach(category => {
+      html += `
+          <li class="category-item">
+           <span class="category-name">${category}</span>
+           <button class="delete-category" aria-label="${category}">删除</button>
+          </li>
       `;
     });
 
-    const categoryList = document.getElementById('categoryList');
-    categoryList.innerHTML = `
-      <div class="category-list">
-        ${this.getCategoryOptions()}
-      </div>
-    `;
+    html += '</ul>';
 
+    categoryList.innerHTML = html;
+
+    // 添加事件监听
+    document.querySelectorAll('.delete-category').forEach(button => {
+      button.addEventListener('click', () => this.deleteCategory(button.getAttribute('aria-label')));
+    });
   }
 
+
+  async deleteCategory(category) {
+    if (confirm(`确定要删除分类 "${category}" 吗？`)) {
+      // 获取所有使用该分类的推文
+      const tweets = await TweetStorage.getAllTweets();
+      const affectedTweets = tweets.filter(tweet => 
+        tweet.categories && tweet.categories.includes(category)
+      );
+      
+      // 从分类列表中移除
+      this.categories = this.categories.filter(c => c !== category);
+      await TweetStorage.saveCategories(this.categories);
+      
+      // 从所有相关推文中移除该分类
+      for (const tweet of affectedTweets) {
+        const updatedCategories = tweet.categories.filter(c => c !== category);
+        await this.updateTweetCategories(tweet.id, updatedCategories);
+      }
+      
+      // 更新界面
+      this.updateCategorySelectors();
+      this.updateCategoryList();
+      await this.loadTweets();
+      
+      // 如果在统计页面，更新统计信息
+      if (this.currentTab === 'stats') {
+        await this.updateStats();
+      }
+    }
+  }
 
 
   async addNewCategory() {
@@ -185,11 +260,78 @@ class PopupManager {
     const category = input.value.trim();
     
     if (category && !this.categories.includes(category)) {
+      // 添加到分类列表
       this.categories.push(category);
       await TweetStorage.saveCategories(this.categories);
-      this.updateCategorySelectors();
+      
+      // 获取所有推文
+      const tweets = await TweetStorage.getAllTweets();
+      
+      // 更新所有已选中该分类的推文
+      const selectedTweets = tweets.filter(tweet => 
+        tweet.categories && tweet.categories.includes(category)
+      );
+      
+      if (selectedTweets.length > 0) {
+        for (const tweet of selectedTweets) {
+          await this.updateTweetCategories(tweet.id, [...tweet.categories]);
+        }
+      }
+      
+      // 更新所有分类选择器
+      this.updateAllCategorySelectors(category);
+      
+      // 清空输入框
       input.value = '';
+      
+      // 重新加载推文列表以显示更新
+      await this.loadTweets();
     }
+  }
+
+  // 添加新方法来更新所有分类选择器
+  updateAllCategorySelectors(newCategory = null) {
+    // 更新主分类选择器
+    this.updateCategorySelectors();
+    
+    // 更新批量操作的分类选择器
+    const batchCategorySelect = document.getElementById('batchCategory');
+    if (batchCategorySelect) {
+      const batchSelectedValues = Array.from(batchCategorySelect.selectedOptions).map(opt => opt.value);
+      batchCategorySelect.innerHTML = this.getCategoryOptions(batchSelectedValues);
+    }
+    
+    // 更新每个推文的分类选择器和标签显示
+    const tweetItems = document.querySelectorAll('.tweet-item');
+    tweetItems.forEach(async item => {
+      const selector = item.querySelector('.tweet-category');
+      const categoriesDisplay = item.querySelector('.selected-categories');
+      
+      if (selector && categoriesDisplay) {
+        const selectedValues = Array.from(selector.selectedOptions).map(opt => opt.value);
+        
+        // 更新选择器
+        selector.innerHTML = this.getCategoryOptions(selectedValues);
+        
+        // 更新标签显示
+        categoriesDisplay.innerHTML = selectedValues.map(cat => 
+          `<span class="category-tag">${cat}</span>`
+        ).join('');
+      }
+    });
+    
+    // 更新分类过滤器
+    const categoryFilter = document.getElementById('categoryFilter');
+    if (categoryFilter) {
+      const currentValue = categoryFilter.value;
+      categoryFilter.innerHTML = `
+        <option value="">全部分类</option>
+        ${this.getCategoryOptions([currentValue])}
+      `;
+    }
+    
+    // 更新分类列表
+    this.updateCategoryList();
   }
 
   async generateArticle() {
@@ -199,10 +341,9 @@ class PopupManager {
       return;
     }
 
-    // 确保 marked 已加载
-    if (typeof marked === 'undefined') {
-      console.error('Marked library not loaded');
-      alert('文章生成组件加载失败');
+    const promptSelect = document.getElementById('promptSelect');
+    if (!promptSelect.value) {
+      alert('请选择一个生成模板');
       return;
     }
 
@@ -210,34 +351,49 @@ class PopupManager {
     articlePreview.innerHTML = '<p class="loading">正在生成文章...</p>';
 
     try {
-      // 准备文章数据
-      const articleData = {
-        tweets: selectedTweets.map(tweet => ({
-          text: tweet.text,
-          author: tweet.author,
-          source: tweet.source,
-          url: tweet.url,
-          categories: tweet.categories,
-          timestamp: tweet.timestamp
-        })),
-        categories: [...new Set(selectedTweets.flatMap(t => t.categories))],
-        totalCount: selectedTweets.length
-      };
-
-      // 调用 OpenAI API 生成文章
-      const article = await this.callOpenAI(articleData);
+      // 使用选中的模板
+      const [type, id] = promptSelect.value.split(':');
+      let promptTemplate;
       
-      // 显示生成的文章
+      if (type === 'default') {
+        promptTemplate = PromptManager.DEFAULT_PROMPTS[id].template;
+      } else {
+        const customPrompts = await PromptManager.getCustomPrompts();
+        promptTemplate = customPrompts[id].template;
+      }
+
+      // 替换模板变量
+      const prompt = promptTemplate
+        .replace('{{content}}', selectedTweets.map(t => t.text).join('\n'))
+        .replace('{{categories}}', [...new Set(selectedTweets.flatMap(t => t.categories))].join(', '));
+
+      // 调用生成方法
+      const response = await this.callOpenAI(prompt);
+      
+      // 解析返回的内容
+      let article;
+      try {
+        article = typeof response === 'string' ? JSON.parse(response) : response;
+      } catch (e) {
+        article = {
+          content: marked.parse(response),
+          tags: [...new Set(selectedTweets.flatMap(t => t.categories))]
+        };
+      }
+
+      // 显示生成的文章（包含所有内容）
       articlePreview.innerHTML = `
         <div class="article-content">
           <div class="article-meta">
             <span class="article-date">${new Date().toLocaleDateString()}</span>
             <span class="article-stats">包含 ${selectedTweets.length} 条内容</span>
           </div>
-          ${article.content}
+          <div class="main-content">
+            ${typeof article.content === 'string' ? article.content : marked.parse(article.content)}
+          </div>
           <div class="article-footer">
             <div class="article-tags">
-              ${article.tags.map(tag => `<span class="tag">#${tag}</span>`).join(' ')}
+              ${(article.tags || []).map(tag => `<span class="tag">#${tag}</span>`).join(' ')}
             </div>
           </div>
         </div>
@@ -252,27 +408,16 @@ class PopupManager {
     }
   }
 
-  async callOpenAI(articleData) {
-    // 构建 prompt
-    const prompt = `根据以下内容生成一篇高质量的技术文章：
-    
-**主题**： ${articleData.tweets.map(t => `- ${t.text}`).join('\n')}
-
-**分类**：${articleData.categories.join(', ')}
-
-**要求**：
-
-1. 生成一篇结构清晰、内容连贯的技术文章。  
-2. 包含一个主标题和多个小标题，适合开发者快速理解和实操。  
-3. 保留原始内容的观点与核心思想，并自然整合必要的过渡语。  
-4. 提供 3-5 个相关标签，便于分类与检索。  
-5. 使用 Markdown 格式编写，确保易于复制与阅读。`;
+  async callOpenAI(prompt) {
     try {
-      return this.generateLocalArticle(articleData,prompt);
+      // 直接返回格式化后的内容
+      return {
+        content: marked(prompt),
+        tags: ['技术', '开发', '学习']
+      };
     } catch (error) {
       console.error('生成文章失败:', error);
-      // 如果 API 调用失败，使用本地模板生成简单文章
-      return this.generateLocalArticle(articleData,prompt);
+      throw new Error('生成文章失败，请稍后重试');
     }
   }
 
@@ -334,30 +479,31 @@ class PopupManager {
   }
 
   async copyToClipboard() {
-    const articleContent = document.getElementById('articlePreview').textContent;
-    if (!articleContent || articleContent.includes('正在生成文章...')) {
+    const articlePreview = document.getElementById('articlePreview');
+    // 只选择主要内容部分
+    const mainContent = articlePreview.querySelector('.main-content');
+    
+    if (!mainContent || mainContent.textContent.includes('正在生成文章...')) {
       alert('请先生成文章');
       return;
     }
 
-    await navigator.clipboard.writeText(articleContent);
+    // 只复制主要内容，不包括时间和标签
+    await navigator.clipboard.writeText(mainContent.textContent);
     alert('文章已复制到剪贴板');
   }
 
   async exportToMarkdown() {
-    const selectedTweets = await TweetStorage.getSelectedTweets();
-    if (selectedTweets.length === 0) {
-      alert('请先选择要导出的推文');
-      return;
-    }
-
-    const articleContent = document.getElementById('articlePreview').textContent;
-    if (!articleContent || articleContent.includes('正在生成文章...')) {
+    const articlePreview = document.getElementById('articlePreview');
+    const mainContent = articlePreview.querySelector('.main-content');
+    
+    if (!mainContent) {
       alert('请先生成文章');
       return;
     }
 
-    const markdown = this.generateMarkdown(selectedTweets, articleContent);
+    const selectedTweets = await TweetStorage.getSelectedTweets();
+    const markdown = this.generateMarkdown(selectedTweets, mainContent.textContent);
     
     // 创建下载链接
     const blob = new Blob([markdown], { type: 'text/markdown' });
@@ -611,29 +757,154 @@ ${tweet.text}
 
   async updateTweetCategories(tweetId, categories) {
     try {
-      // 先移除所有分类
       const tweet = (await TweetStorage.getAllTweets()).find(t => t.id === tweetId);
       if (tweet) {
         const oldCategories = tweet.categories || [];
         
-        // 移除不在新分类中的旧分类
-        for (const oldCategory of oldCategories) {
-          if (!categories.includes(oldCategory)) {
-            await TweetStorage.removeTweetCategory(tweetId, oldCategory);
-          }
+        // 获取需要移除和添加的分类
+        const categoriesToRemove = oldCategories.filter(c => !categories.includes(c));
+        const categoriesToAdd = categories.filter(c => !oldCategories.includes(c));
+        
+        // 移除旧分类
+        for (const category of categoriesToRemove) {
+          await TweetStorage.removeTweetCategory(tweetId, category);
         }
         
         // 添加新分类
-        for (const newCategory of categories) {
-          if (!oldCategories.includes(newCategory)) {
-            await TweetStorage.updateTweetCategory(tweetId, newCategory);
+        for (const category of categoriesToAdd) {
+          await TweetStorage.updateTweetCategory(tweetId, category);
+        }
+        
+        // 更新所有相关推文的分类显示
+        const allTweets = await TweetStorage.getAllTweets();
+        const relatedTweets = allTweets.filter(t => 
+          t.categories.some(c => categoriesToAdd.includes(c) || categoriesToRemove.includes(c))
+        );
+        
+        for (const relatedTweet of relatedTweets) {
+          if (relatedTweet.id !== tweetId) {
+            const updatedCategories = relatedTweet.categories.map(c => {
+              if (categoriesToRemove.includes(c)) {
+                return categories.find(newCat => newCat !== c) || c;
+              }
+              return c;
+            });
+            await TweetStorage.updateTweetCategories(relatedTweet.id, updatedCategories);
           }
         }
         
-        await this.loadTweets(); // 重新加载列表以更新显示
+        // 重新加载推文列表
+        await this.loadTweets();
+        
+        // 如果在统计页面，更新统计信息
+        if (this.currentTab === 'stats') {
+          await this.updateStats();
+        }
       }
     } catch (error) {
       console.error('更新分类失败:', error);
+    }
+  }
+
+  async loadPrompts() {
+    const prompts = await PromptManager.getAllPrompts();
+    const promptSelect = document.getElementById('promptSelect');
+    
+    // 清空现有选项
+    promptSelect.querySelector('optgroup[label="内置模板"]').innerHTML = '';
+    promptSelect.querySelector('optgroup[label="自定义模板"]').innerHTML = '';
+    
+    // 添加内置模板
+    const defaultGroup = promptSelect.querySelector('optgroup[label="内置模板"]');
+    Object.entries(prompts.default).forEach(([id, prompt], index) => {
+      const option = document.createElement('option');
+      option.value = `default:${id}`;
+      option.textContent = prompt.name;
+      // 如果是第一个选项，设置为选中状态
+      if (index === 0) {
+        option.selected = true;
+      }
+      defaultGroup.appendChild(option);
+    });
+    
+    // 添加自定义模板
+    const customGroup = promptSelect.querySelector('optgroup[label="自定义模板"]');
+    Object.entries(prompts.custom).forEach(([id, prompt]) => {
+      const option = document.createElement('option');
+      option.value = `custom:${id}`;
+      option.textContent = prompt.name;
+      customGroup.appendChild(option);
+    });
+  }
+
+  async showPromptDialog(existingPrompt = null) {
+    const dialog = document.createElement('dialog');
+    dialog.innerHTML = `
+      <form method="dialog">
+        <h3>${existingPrompt ? '编辑模板' : '新建模板'}</h3>
+        <div>
+          <label>名称：<input type="text" id="promptName" value="${existingPrompt?.name || ''}" required></label>
+        </div>
+        <div>
+          <label>模板：<textarea id="promptTemplate" required>${existingPrompt?.template || ''}</textarea></label>
+        </div>
+        <div class="dialog-buttons">
+          <button type="submit" value="submit">保存</button>
+          <button type="submit" value="cancel">取消</button>
+        </div>
+      </form>
+    `;
+    
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    
+    // 添加点击外部关闭功能
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog) {
+        dialog.close('cancel');
+      }
+    });
+    
+    dialog.addEventListener('close', async () => {
+      if (dialog.returnValue === 'submit') {
+        const name = document.getElementById('promptName').value;
+        const template = document.getElementById('promptTemplate').value;
+        if (name && template) {
+          const id = existingPrompt?.id || Date.now().toString();
+          await PromptManager.saveCustomPrompt(id, { name, template });
+          await this.loadPrompts();
+        }
+      }
+      dialog.remove();
+    });
+  }
+
+  async editSelectedPrompt() {
+    const select = document.getElementById('promptSelect');
+    const [type, id] = select.value.split(':');
+    
+    if (type === 'custom') {
+      const prompts = await PromptManager.getCustomPrompts();
+      const prompt = prompts[id];
+      if (prompt) {
+        this.showPromptDialog({ ...prompt, id });
+      }
+    } else {
+      alert('内置模板不可编辑');
+    }
+  }
+
+  async deleteSelectedPrompt() {
+    const select = document.getElementById('promptSelect');
+    const [type, id] = select.value.split(':');
+    
+    if (type === 'custom') {
+      if (confirm('确定要删除这个模板吗？')) {
+        await PromptManager.deleteCustomPrompt(id);
+        await this.loadPrompts();
+      }
+    } else {
+      alert('内置模板不可删除');
     }
   }
 }
