@@ -46,15 +46,14 @@ class PopupManager {
     // 添加分类
     document.getElementById('addCategory').addEventListener('click', () => this.addNewCategory());
 
-    // 生成文章
+    // 生成文章相关功能
     document.getElementById('generateArticle').addEventListener('click', () => this.generateArticle());
     document.getElementById('exportMarkdown').addEventListener('click', () => this.exportToMarkdown());
-  
+
     // 复制文章
     document.getElementById('copyButton').addEventListener('click', () => this.copyToClipboard());
 
-    // 添加 prompt 相关的事件监听
-    document.getElementById('addCustomPrompt').addEventListener('click', () => this.showPromptDialog());
+    // prompt 相关的事件监听
     document.getElementById('editPrompt').addEventListener('click', () => this.editSelectedPrompt());
     document.getElementById('deletePrompt').addEventListener('click', () => this.deleteSelectedPrompt());
   }
