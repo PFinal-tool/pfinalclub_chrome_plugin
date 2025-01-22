@@ -70,14 +70,16 @@ class PopupManager {
     const copyButton = document.getElementById('copyButton');
 
 
-    // 添加事件监听器前检查元素是否存在
-    if (categoryFilter) categoryFilter.addEventListener('change', () => this.filterTweets());
-    if (sentimentFilter) sentimentFilter.addEventListener('change', () => this.filterTweets());
-    if (addCategoryBtn) addCategoryBtn.addEventListener('click', () => this.addNewCategory());
-    if (generateArticleBtn) generateArticleBtn.addEventListener('click', () => this.generateArticle());
-    if (exportMarkdownBtn) exportMarkdownBtn.addEventListener('click', () => this.exportToMarkdown());
-    if (copyButton) copyButton.addEventListener('click', () => this.copyToClipboard());
+    // 生成文章相关功能
+    document.getElementById('generateArticle').addEventListener('click', () => this.generateArticle());
+    document.getElementById('exportMarkdown').addEventListener('click', () => this.exportToMarkdown());
 
+    // 复制文章
+    document.getElementById('copyButton').addEventListener('click', () => this.copyToClipboard());
+
+    // prompt 相关的事件监听
+    document.getElementById('editPrompt').addEventListener('click', () => this.editSelectedPrompt());
+    document.getElementById('deletePrompt').addEventListener('click', () => this.deleteSelectedPrompt());
   }
 
   switchTab(tabId) {

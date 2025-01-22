@@ -78,6 +78,16 @@ class TweetStorage {
     await chrome.storage.local.set({ tweets: filteredTweets });
   }
 
+  static async updateTweetCategories(tweetId, categories) {
+    const tweets = await this.getAllTweets();
+    const index = tweets.findIndex(t => t.id === tweetId);
+    
+    if (index !== -1) {
+      tweets[index].categories = categories;
+      await chrome.storage.local.set({ tweets });
+    }
+  }
+
   static async getSelectedTweets() {
     const tweets = await this.getAllTweets();
     return tweets.filter(t => t.selected);

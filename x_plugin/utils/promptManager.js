@@ -1,6 +1,5 @@
 export default class PromptManager {
   static STORAGE_KEY = 'customPrompts';
-
   static async getCustomPrompts() {
     const data = await chrome.storage.local.get(this.STORAGE_KEY);
     return data[this.STORAGE_KEY] || {};
