@@ -6,6 +6,7 @@ class PopupManager {
   constructor() {
     this.currentTab = 'tweets';
     this.categories = [];
+    this.currentPrompt = null; // 添加新属性来保存当前使用的 prompt
     this.init();
   }
 
@@ -14,13 +15,34 @@ class PopupManager {
       await this.loadCategories();
       await this.loadTweets();
       await this.loadPrompts();
-      this.setupTabNavigation();
-      this.setupEventListeners();
-      this.setupBatchOperations();
-      // 初始化时更新统计信息
-      await this.updateStats();
+      
+      // 确保DOM元素存在后再设置事件监听
+      if (document.readyState === 'complete') {
+        this.setupTabNavigation();
+        this.setupEventListeners();
+        this.setupBatchOperations();
+        // 初始化时更新统计信息
+        await this.updateStats();
+      } else {
+        window.addEventListener('load', async () => {
+          this.setupTabNavigation();
+          this.setupEventListeners();
+          this.setupBatchOperations();
+          await this.updateStats();
+        });
+      }
     } catch (error) {
       console.error('初始化失败:', error);
+      // 显示错误信息给用户
+      const tweetList = document.getElementById('tweetList');
+      if (tweetList) {
+        tweetList.innerHTML = `
+          <div class="error-state">
+            <p>加载失败</p>
+            <p class="error-message">${error.message}</p>
+          </div>
+        `;
+      }
     }
   }
 
@@ -40,23 +62,22 @@ class PopupManager {
 
   setupEventListeners() {
     // 分类筛选
-    document.getElementById('categoryFilter').addEventListener('change', () => this.filterTweets());
-    document.getElementById('sentimentFilter').addEventListener('change', () => this.filterTweets());
+    const categoryFilter = document.getElementById('categoryFilter');
+    const sentimentFilter = document.getElementById('sentimentFilter');
+    const addCategoryBtn = document.getElementById('addCategory');
+    const generateArticleBtn = document.getElementById('generateArticle');
+    const exportMarkdownBtn = document.getElementById('exportMarkdown');
+    const copyButton = document.getElementById('copyButton');
 
-    // 添加分类
-    document.getElementById('addCategory').addEventListener('click', () => this.addNewCategory());
 
-    // 生成文章
-    document.getElementById('generateArticle').addEventListener('click', () => this.generateArticle());
-    document.getElementById('exportMarkdown').addEventListener('click', () => this.exportToMarkdown());
-  
-    // 复制文章
-    document.getElementById('copyButton').addEventListener('click', () => this.copyToClipboard());
+    // 添加事件监听器前检查元素是否存在
+    if (categoryFilter) categoryFilter.addEventListener('change', () => this.filterTweets());
+    if (sentimentFilter) sentimentFilter.addEventListener('change', () => this.filterTweets());
+    if (addCategoryBtn) addCategoryBtn.addEventListener('click', () => this.addNewCategory());
+    if (generateArticleBtn) generateArticleBtn.addEventListener('click', () => this.generateArticle());
+    if (exportMarkdownBtn) exportMarkdownBtn.addEventListener('click', () => this.exportToMarkdown());
+    if (copyButton) copyButton.addEventListener('click', () => this.copyToClipboard());
 
-    // 添加 prompt 相关的事件监听
-    document.getElementById('addCustomPrompt').addEventListener('click', () => this.showPromptDialog());
-    document.getElementById('editPrompt').addEventListener('click', () => this.editSelectedPrompt());
-    document.getElementById('deletePrompt').addEventListener('click', () => this.deleteSelectedPrompt());
   }
 
   switchTab(tabId) {
@@ -85,33 +106,34 @@ class PopupManager {
 
   createTweetElement(tweet) {
     const div = document.createElement('div');
-    div.className = 'tweet-item';
+    div.className = `tweet-item ${tweet.selected ? 'selected' : ''}`;
+    div.dataset.tweetId = tweet.id;
     
     // 构建基本信息
     let html = `
-      <div class="tweet-header">
-        <input type="checkbox" class="tweet-select" ${tweet.selected ? 'checked' : ''}>
-        <div class="tweet-author">${tweet.author || '未知来源'}</div>
-        <div class="tweet-time">${new Date(tweet.timestamp).toLocaleString()}</div>
+     
+      <div class="tweet-content">
+        <div class="tweet-title">${tweet.text}</div>
+        <div class="tweet-text">${tweet.author || '未知来源'}</div>
+        <div class="tweet-meta">
+          <div class="tweet-time">${new Date(tweet.timestamp).toLocaleString()}</div>
+          <div class="tweet-source">${tweet.source ? `来源: ${tweet.source}` : ''}</div>
+          <div class="tweet-url"><a href="${tweet.url}" target="_blank">原文链接</a></div>
+        </div>
       </div>
-      <div class="tweet-text">${tweet.text}</div>
-      <div class="tweet-source">${tweet.source ? `来源: ${tweet.source}` : ''}</div>
-      <div class="tweet-url"><a href="${tweet.url}" target="_blank">原文链接</a></div>
     `;
 
-    // 优化分类选择器的显示
+    // 使用标签式分类选择器
     if (this.categories && this.categories.length > 0) {
       html += `
         <div class="tweet-actions">
-          <div class="category-selector-wrapper">
-            <select class="tweet-category" multiple title="按住 Ctrl/Command 键可多选">
-              ${this.getCategoryOptions(tweet.categories || [])}
-            </select>
-            <div class="selected-categories">
-              ${(tweet.categories || []).map(cat => 
-                `<span class="category-tag">${cat}</span>`
-              ).join('')}
-            </div>
+          <div class="category-chips">
+            ${this.categories.map(category => `
+              <div class="category-chip ${(tweet.categories || []).includes(category) ? 'selected' : ''}" 
+                   data-category="${category}">
+                ${category}
+              </div>
+            `).join('')}
           </div>
           <button class="delete-tweet danger">删除</button>
         </div>
@@ -126,32 +148,32 @@ class PopupManager {
 
     div.innerHTML = html;
 
-    // 添加事件监听
-    div.querySelector('.tweet-select').addEventListener('change', (e) => {
-      TweetStorage.toggleTweetSelection(tweet.id);
+    // 添加点击选择事件
+    div.addEventListener('click', (e) => {
+      // 如果点击的是删除按钮或链接，不触发选择
+      if (!e.target.closest('.delete-tweet') && !e.target.closest('a')) {
+        div.classList.toggle('selected');
+        TweetStorage.toggleTweetSelection(tweet.id);
+      }
     });
 
-    // 分类选择器的事件处理
-    const categorySelect = div.querySelector('.tweet-category');
-    if (categorySelect) {
-      // 选择变化时更新显示的标签
-      categorySelect.addEventListener('change', (e) => {
-        const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value);
-        this.updateTweetCategories(tweet.id, selectedOptions);
+    // 分类标签的事件处理
+    const categoryChips = div.querySelectorAll('.category-chip');
+    categoryChips.forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation(); // 阻止冒泡，避免触发tweet选择
+        const category = chip.dataset.category;
+        chip.classList.toggle('selected');
         
-        // 更新显示的标签
-        const categoriesDisplay = div.querySelector('.selected-categories');
-        categoriesDisplay.innerHTML = selectedOptions.map(cat => 
-          `<span class="category-tag">${cat}</span>`
-        ).join('');
+        // 获取当前选中的所有分类
+        const selectedCategories = Array.from(div.querySelectorAll('.category-chip.selected'))
+          .map(chip => chip.dataset.category);
+        
+        this.updateTweetCategories(tweet.id, selectedCategories);
       });
+    });
 
-      // 鼠标悬停时显示提示
-      categorySelect.addEventListener('mouseover', () => {
-        categorySelect.title = '按住 Ctrl/Command 键可多选';
-      });
-    }
-
+    // 添加删除按钮的事件监听
     div.querySelector('.delete-tweet').addEventListener('click', () => {
       this.deleteTweet(tweet.id);
     });
@@ -335,77 +357,81 @@ class PopupManager {
   }
 
   async generateArticle() {
-    const selectedTweets = await TweetStorage.getSelectedTweets();
-    if (selectedTweets.length === 0) {
-      alert('请先选择要包含的推文');
-      return;
-    }
-
-    const promptSelect = document.getElementById('promptSelect');
-    if (!promptSelect.value) {
-      alert('请选择一个生成模板');
-      return;
-    }
-
-    const articlePreview = document.getElementById('articlePreview');
-    articlePreview.innerHTML = '<p class="loading">正在生成文章...</p>';
-
     try {
-      // 使用选中的模板
-      const [type, id] = promptSelect.value.split(':');
-      let promptTemplate;
-      
-      if (type === 'default') {
-        promptTemplate = PromptManager.DEFAULT_PROMPTS[id].template;
-      } else {
-        const customPrompts = await PromptManager.getCustomPrompts();
-        promptTemplate = customPrompts[id].template;
+      const promptSelect = document.getElementById('promptSelect');
+      if (!promptSelect.value) {
+        alert('请先选择一个模板');
+        return;
       }
 
-      // 替换模板变量
-      const prompt = promptTemplate
-        .replace('{{content}}', selectedTweets.map(t => t.text).join('\n'))
-        .replace('{{categories}}', [...new Set(selectedTweets.flatMap(t => t.categories))].join(', '));
+      // Get selected tweets
+      const selectedTweets = await TweetStorage.getSelectedTweets();
+      if (selectedTweets.length === 0) {
+        alert('请先选择要生成文章的推文');
+        return;
+      }
 
-      // 调用生成方法
+      // Get prompt template
+      const { default: defaultPrompts, custom: customPrompts } = await PromptManager.getAllPrompts();
+      const prompts = { ...defaultPrompts, ...customPrompts };
+      const promptTemplate = prompts[promptSelect.value]?.template;
+      if (!promptTemplate) {
+        alert('模板加载失败');
+        return;
+      }
+
+      // Save current template
+      this.currentPrompt = promptTemplate;
+
+      // Generate content from tweets
+      const tweetContent = this.formatTweetsForArticle(selectedTweets);
+      const categories = this.getCategoriesFromTweets(selectedTweets);
+      console.log('tweetContent:', tweetContent);
+      // Replace template variables
+      const prompt = promptTemplate
+        .replace('{{content}}', tweetContent)
+        .replace('{{categories}}', categories.join('、'));
+
+      // Call API to generate article
       const response = await this.callOpenAI(prompt);
       
-      // 解析返回的内容
-      let article;
-      try {
-        article = typeof response === 'string' ? JSON.parse(response) : response;
-      } catch (e) {
-        article = {
-          content: marked.parse(response),
-          tags: [...new Set(selectedTweets.flatMap(t => t.categories))]
-        };
-      }
-
-      // 显示生成的文章（包含所有内容）
-      articlePreview.innerHTML = `
-        <div class="article-content">
-          <div class="article-meta">
-            <span class="article-date">${new Date().toLocaleDateString()}</span>
-            <span class="article-stats">包含 ${selectedTweets.length} 条内容</span>
-          </div>
-          <div class="main-content">
-            ${typeof article.content === 'string' ? article.content : marked.parse(article.content)}
-          </div>
-          <div class="article-footer">
-            <div class="article-tags">
-              ${(article.tags || []).map(tag => `<span class="tag">#${tag}</span>`).join(' ')}
-            </div>
-          </div>
-        </div>
-      `;
-
-      // 启用导出按钮
-      document.getElementById('exportMarkdown').disabled = false;
+      // Display result
+      this.displayGeneratedArticle(response, selectedTweets);
       
     } catch (error) {
       console.error('生成文章失败:', error);
-      articlePreview.innerHTML = `<p class="error">生成文章失败: ${error.message}</p>`;
+      alert('生成文章失败: ' + error.message);
     }
+  }
+
+  async loadPrompts() {
+    try {
+      const { default: defaultPrompts } = await PromptManager.getAllPrompts();
+      const promptSelect = document.getElementById('promptSelect');
+      if (!promptSelect) return;
+      
+      // Clear existing options
+      promptSelect.innerHTML = `
+        <option value="">选择模板</option>
+        <optgroup label="内置模板"></optgroup>
+      `;
+      
+      const defaultGroup = promptSelect.querySelector('optgroup[label="内置模板"]');
+      
+      // Add default templates
+      Object.entries(defaultPrompts).forEach(([id, prompt]) => {
+        this.addPromptOption(defaultGroup, id, prompt);
+      });
+    } catch (error) {
+      console.error('加载模板失败:', error);
+    }
+  }
+
+  addPromptOption(group, id, prompt) {
+    const option = document.createElement('option');
+    option.value = id;
+    option.textContent = prompt.name;
+    group.appendChild(option);
   }
 
   async callOpenAI(prompt) {
@@ -479,19 +505,23 @@ class PopupManager {
   }
 
   async copyToClipboard() {
-    const articlePreview = document.getElementById('articlePreview');
-    // 只选择主要内容部分
-    const mainContent = articlePreview.querySelector('.main-content');
-    
-    if (!mainContent || mainContent.textContent.includes('正在生成文章...')) {
+    if (!this.currentPrompt) {
       alert('请先生成文章');
       return;
     }
 
-    // 只复制主要内容，不包括时间和标签
-    await navigator.clipboard.writeText(mainContent.textContent);
-    alert('文章已复制到剪贴板');
-  }
+    const selectedTweets = await TweetStorage.getSelectedTweets();
+    const categories = [...new Set(selectedTweets.flatMap(t => t.categories))].join(', ');
+    
+    // 组合完整的 prompt
+    const fullPrompt = this.currentPrompt
+      .replace('{{content}}', selectedTweets.map(t => t.text).join('\n'))
+      .replace('{{categories}}', categories);
+
+    // 复制到剪贴板
+    await navigator.clipboard.writeText(fullPrompt);
+    alert('Prompt 已复制到剪贴板');
+}
 
   async exportToMarkdown() {
     const articlePreview = document.getElementById('articlePreview');
@@ -675,6 +705,21 @@ ${tweet.text}
     `;
   }
 
+  formatTweetsForArticle(tweets) {
+    return tweets.map(tweet => tweet.text).join('\n\n');
+  }
+
+  getCategoriesFromTweets(tweets) {
+    // 从所有推文中提取唯一的分类列表
+    const categories = new Set();
+    tweets.forEach(tweet => {
+      if (tweet.categories && Array.isArray(tweet.categories)) {
+        tweet.categories.forEach(category => categories.add(category));
+      }
+    });
+    return Array.from(categories);
+  }
+
   setupBatchOperations() {
     const batchPanel = document.getElementById('batchOperations');
     batchPanel.innerHTML = `
@@ -683,28 +728,26 @@ ${tweet.text}
         <button id="deselectAll">取消全选</button>
         <button id="batchDelete" class="danger">批量删除</button>
       </div>
-      <div class="batch-categories">
-        <select id="batchCategory" multiple>
-          ${this.getCategoryOptions()}
-        </select>
-        <button id="addToCategory">添加到分类</button>
-        <button id="removeFromCategory">从分类移除</button>
-      </div>
     `;
 
     // 添加事件监听
     document.getElementById('selectAll').addEventListener('click', () => this.toggleAllSelection(true));
     document.getElementById('deselectAll').addEventListener('click', () => this.toggleAllSelection(false));
     document.getElementById('batchDelete').addEventListener('click', () => this.batchDeleteTweets());
-    document.getElementById('addToCategory').addEventListener('click', () => this.batchAddToCategory());
-    document.getElementById('removeFromCategory').addEventListener('click', () => this.batchRemoveFromCategory());
   }
 
   async toggleAllSelection(selected) {
     const tweets = await TweetStorage.getAllTweets();
-    await Promise.all(tweets.map(tweet => 
-      TweetStorage.toggleTweetSelection(tweet.id, selected)
-    ));
+    // 更新所有推文的选择状态
+    for (const tweet of tweets) {
+      await TweetStorage.toggleTweetSelection(tweet.id, selected);
+      // 更新 UI 显示
+      const tweetElement = document.querySelector(`[data-tweet-id="${tweet.id}"]`);
+      if (tweetElement) {
+        tweetElement.classList.toggle('selected', selected);
+      }
+    }
+    // 重新加载推文列表以确保 UI 状态同步
     await this.loadTweets();
   }
 
@@ -806,108 +849,32 @@ ${tweet.text}
     }
   }
 
-  async loadPrompts() {
-    const prompts = await PromptManager.getAllPrompts();
-    const promptSelect = document.getElementById('promptSelect');
-    
-    // 清空现有选项
-    promptSelect.querySelector('optgroup[label="内置模板"]').innerHTML = '';
-    promptSelect.querySelector('optgroup[label="自定义模板"]').innerHTML = '';
-    
-    // 添加内置模板
-    const defaultGroup = promptSelect.querySelector('optgroup[label="内置模板"]');
-    Object.entries(prompts.default).forEach(([id, prompt], index) => {
-      const option = document.createElement('option');
-      option.value = `default:${id}`;
-      option.textContent = prompt.name;
-      // 如果是第一个选项，设置为选中状态
-      if (index === 0) {
-        option.selected = true;
-      }
-      defaultGroup.appendChild(option);
-    });
-    
-    // 添加自定义模板
-    const customGroup = promptSelect.querySelector('optgroup[label="自定义模板"]');
-    Object.entries(prompts.custom).forEach(([id, prompt]) => {
-      const option = document.createElement('option');
-      option.value = `custom:${id}`;
-      option.textContent = prompt.name;
-      customGroup.appendChild(option);
-    });
-  }
+  displayGeneratedArticle(response, selectedTweets) {
+    const articlePreview = document.getElementById('articlePreview');
+    if (!articlePreview) return;
 
-  async showPromptDialog(existingPrompt = null) {
-    const dialog = document.createElement('dialog');
-    dialog.innerHTML = `
-      <form method="dialog">
-        <h3>${existingPrompt ? '编辑模板' : '新建模板'}</h3>
-        <div>
-          <label>名称：<input type="text" id="promptName" value="${existingPrompt?.name || ''}" required></label>
+    // 从选中的推文中获取基本信息
+    const categories = this.getCategoriesFromTweets(selectedTweets);
+    const date = new Date().toLocaleString();
+
+    // 构建文章预览 HTML
+    articlePreview.innerHTML = `
+      <div class="article-meta">
+        <span>生成时间：${date}</span>
+        <span>分类：${categories.join('、') || '未分类'}</span>
+      </div>
+      <div class="main-content">
+        ${response.content}
+      </div>
+      <div class="article-footer">
+        <div class="article-tags">
+          ${response.tags.map(tag => `<span class="tag">#${tag}</span>`).join('')}
         </div>
-        <div>
-          <label>模板：<textarea id="promptTemplate" required>${existingPrompt?.template || ''}</textarea></label>
-        </div>
-        <div class="dialog-buttons">
-          <button type="submit" value="submit">保存</button>
-          <button type="submit" value="cancel">取消</button>
-        </div>
-      </form>
+      </div>
     `;
-    
-    document.body.appendChild(dialog);
-    dialog.showModal();
-    
-    // 添加点击外部关闭功能
-    dialog.addEventListener('click', (e) => {
-      if (e.target === dialog) {
-        dialog.close('cancel');
-      }
-    });
-    
-    dialog.addEventListener('close', async () => {
-      if (dialog.returnValue === 'submit') {
-        const name = document.getElementById('promptName').value;
-        const template = document.getElementById('promptTemplate').value;
-        if (name && template) {
-          const id = existingPrompt?.id || Date.now().toString();
-          await PromptManager.saveCustomPrompt(id, { name, template });
-          await this.loadPrompts();
-        }
-      }
-      dialog.remove();
-    });
   }
 
-  async editSelectedPrompt() {
-    const select = document.getElementById('promptSelect');
-    const [type, id] = select.value.split(':');
-    
-    if (type === 'custom') {
-      const prompts = await PromptManager.getCustomPrompts();
-      const prompt = prompts[id];
-      if (prompt) {
-        this.showPromptDialog({ ...prompt, id });
-      }
-    } else {
-      alert('内置模板不可编辑');
-    }
-  }
-
-  async deleteSelectedPrompt() {
-    const select = document.getElementById('promptSelect');
-    const [type, id] = select.value.split(':');
-    
-    if (type === 'custom') {
-      if (confirm('确定要删除这个模板吗？')) {
-        await PromptManager.deleteCustomPrompt(id);
-        await this.loadPrompts();
-      }
-    } else {
-      alert('内置模板不可删除');
-    }
-  }
 }
 
 // 初始化 popup
-new PopupManager(); 
+new PopupManager();

@@ -9,7 +9,7 @@
     "128": "icons/icon128.png"
   },
   "web_accessible_resources": [{
-    "resources": ["lib/*"],
+    "resources": ["lib/*", "templates/*"],
     "matches": ["<all_urls>"]
   }],
   "permissions": [
@@ -37,4 +37,4 @@
   "background": {
     "service_worker": "background/background.js"
   }
-} 
+}
