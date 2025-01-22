@@ -61,25 +61,44 @@ class PopupManager {
   }
 
   setupEventListeners() {
-    // 分类筛选
-    const categoryFilter = document.getElementById('categoryFilter');
-    const sentimentFilter = document.getElementById('sentimentFilter');
-    const addCategoryBtn = document.getElementById('addCategory');
-    const generateArticleBtn = document.getElementById('generateArticle');
-    const exportMarkdownBtn = document.getElementById('exportMarkdown');
-    const copyButton = document.getElementById('copyButton');
+    try {
+      // 分类筛选
+      const categoryFilter = document.getElementById('categoryFilter');
+      const sentimentFilter = document.getElementById('sentimentFilter');
+      const addCategoryBtn = document.getElementById('addCategory');
+      const generateArticleBtn = document.getElementById('generateArticle');
+      const exportMarkdownBtn = document.getElementById('exportMarkdown');
+      const copyButton = document.getElementById('copyButton');
 
+      // 添加分类相关事件
+      if (addCategoryBtn) {
+        addCategoryBtn.addEventListener('click', () => this.addNewCategory());
+      }
 
-    // 生成文章相关功能
-    document.getElementById('generateArticle').addEventListener('click', () => this.generateArticle());
-    document.getElementById('exportMarkdown').addEventListener('click', () => this.exportToMarkdown());
+      // 生成文章相关功能
+      if (generateArticleBtn) {
+        generateArticleBtn.addEventListener('click', () => this.generateArticle());
+      }
 
-    // 复制文章
-    document.getElementById('copyButton').addEventListener('click', () => this.copyToClipboard());
+      if (exportMarkdownBtn) {
+        exportMarkdownBtn.addEventListener('click', () => this.exportToMarkdown());
+      }
 
-    // prompt 相关的事件监听
-    document.getElementById('editPrompt').addEventListener('click', () => this.editSelectedPrompt());
-    document.getElementById('deletePrompt').addEventListener('click', () => this.deleteSelectedPrompt());
+      // 复制文章
+      if (copyButton) {
+        copyButton.addEventListener('click', () => this.copyToClipboard());
+      }
+
+      // 分类和情感过滤器
+      if (categoryFilter) {
+        categoryFilter.addEventListener('change', () => this.filterTweets());
+      }
+      if (sentimentFilter) {
+        sentimentFilter.addEventListener('change', () => this.filterTweets());
+      }
+    } catch (error) {
+      console.error('设置事件监听器失败:', error);
+    }
   }
 
   switchTab(tabId) {
@@ -151,27 +170,41 @@ class PopupManager {
     div.innerHTML = html;
 
     // 添加点击选择事件
-    div.addEventListener('click', (e) => {
-      // 如果点击的是删除按钮或链接，不触发选择
-      if (!e.target.closest('.delete-tweet') && !e.target.closest('a')) {
-        div.classList.toggle('selected');
-        TweetStorage.toggleTweetSelection(tweet.id);
+    div.addEventListener('click', async (e) => {
+      // 如果点击的是删除按钮、链接或分类标签，不触发选择
+      if (!e.target.closest('.delete-tweet') && !e.target.closest('a') && !e.target.closest('.category-chip')) {
+        const newSelected = !div.classList.contains('selected');
+        div.classList.toggle('selected', newSelected);
+        await TweetStorage.toggleTweetSelection(tweet.id, newSelected);
       }
     });
 
     // 分类标签的事件处理
     const categoryChips = div.querySelectorAll('.category-chip');
     categoryChips.forEach(chip => {
-      chip.addEventListener('click', (e) => {
+      chip.addEventListener('click', async (e) => {
+        e.preventDefault();
         e.stopPropagation(); // 阻止冒泡，避免触发tweet选择
+        
         const category = chip.dataset.category;
-        chip.classList.toggle('selected');
+        const wasSelected = chip.classList.contains('selected');
         
-        // 获取当前选中的所有分类
-        const selectedCategories = Array.from(div.querySelectorAll('.category-chip.selected'))
-          .map(chip => chip.dataset.category);
-        
-        this.updateTweetCategories(tweet.id, selectedCategories);
+        try {
+          // 先更新视觉状态
+          chip.classList.toggle('selected', !wasSelected);
+          
+          // 获取当前选中的所有分类
+          const selectedCategories = Array.from(div.querySelectorAll('.category-chip.selected'))
+            .map(chip => chip.dataset.category);
+          
+          // 更新分类
+          await this.updateTweetCategories(tweet.id, selectedCategories);
+        } catch (error) {
+          console.error('更新分类失败:', error);
+          // 如果更新失败，恢复原始状态
+          chip.classList.toggle('selected', wasSelected);
+          alert('更新分类失败，请重试');
+        }
       });
     });
 
@@ -250,30 +283,52 @@ class PopupManager {
 
   async deleteCategory(category) {
     if (confirm(`确定要删除分类 "${category}" 吗？`)) {
-      // 获取所有使用该分类的推文
-      const tweets = await TweetStorage.getAllTweets();
-      const affectedTweets = tweets.filter(tweet => 
-        tweet.categories && tweet.categories.includes(category)
-      );
-      
-      // 从分类列表中移除
-      this.categories = this.categories.filter(c => c !== category);
-      await TweetStorage.saveCategories(this.categories);
-      
-      // 从所有相关推文中移除该分类
-      for (const tweet of affectedTweets) {
-        const updatedCategories = tweet.categories.filter(c => c !== category);
-        await this.updateTweetCategories(tweet.id, updatedCategories);
-      }
-      
-      // 更新界面
-      this.updateCategorySelectors();
-      this.updateCategoryList();
-      await this.loadTweets();
-      
-      // 如果在统计页面，更新统计信息
-      if (this.currentTab === 'stats') {
-        await this.updateStats();
+      try {
+        // 获取所有使用该分类的推文
+        const tweets = await TweetStorage.getAllTweets();
+        const affectedTweets = tweets.filter(tweet => 
+          tweet.categories && tweet.categories.includes(category)
+        );
+        
+        // 从分类列表中移除
+        this.categories = this.categories.filter(c => c !== category);
+        await TweetStorage.saveCategories(this.categories);
+        
+        // 从所有相关推文中移除该分类
+        for (const tweet of affectedTweets) {
+          const updatedCategories = tweet.categories.filter(c => c !== category);
+          await this.updateTweetCategories(tweet.id, updatedCategories);
+        }
+        
+        // 更新界面
+        if (this.categories.length === 0) {
+          // 当删除最后一个分类时，清空分类列表
+          const categoryList = document.getElementById('categoryList');
+          if (categoryList) {
+            categoryList.innerHTML = '';
+          }
+          
+          // 清空所有分类选择器
+          const selectors = document.querySelectorAll('.tweet-category, #categoryFilter, #batchCategory');
+          selectors.forEach(selector => {
+            if (selector) {
+              selector.innerHTML = selector.id === 'categoryFilter' ? '<option value="">全部分类</option>' : '';
+            }
+          });
+        } else {
+          this.updateCategorySelectors();
+          this.updateCategoryList();
+        }
+        
+        await this.loadTweets();
+        
+        // 如果在统计页面，更新统计信息
+        if (this.currentTab === 'stats') {
+          await this.updateStats();
+        }
+      } catch (error) {
+        console.error('删除分类失败:', error);
+        alert('删除分类失败，请重试');
       }
     }
   }

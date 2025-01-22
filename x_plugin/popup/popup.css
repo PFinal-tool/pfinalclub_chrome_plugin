@@ -98,6 +98,12 @@ main {
   transform: translateY(-1px);
 }
 
+.tweet-item.selected {
+  background-color: #e8f0fe;
+  border-color: #1a73e8;
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.1);
+}
+
 .tweet-actions {
   display: flex;
   gap: 8px;
@@ -151,36 +157,52 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: 12px 16px;
   border-bottom: 1px solid #eaeaea;
-  transition: background-color 0.2s ease;
+  transition: all 0.3s ease;
+  margin: 0 -16px;
+  position: relative;
 }
 
 .category-item:hover {
   background-color: #f8f9fa;
+  padding-left: 20px;
 }
 
 .category-name {
   font-size: 14px;
   color: #2c3e50;
   flex: 1;
+  font-weight: 500;
+  margin-right: 16px;
 }
 
-.category-item button.delete-button {
-  padding: 4px 12px;
+.category-item .delete-category {
+  padding: 6px 12px;
   height: 28px;
   font-size: 13px;
   background-color: transparent;
   color: #dc3545;
-  border: 1px solid #dc3545;
+  border: 1px solid transparent;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-left: auto;
+  opacity: 0.7;
   min-width: 60px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.category-item:hover .delete-category {
+  opacity: 1;
+  border-color: #dc3545;
+}
+
+.category-item .delete-category:hover {
+  background-color: #dc3545;
+  color: white;
+  opacity: 1;
 }
 
 .category-item button.delete-button:hover {
@@ -588,6 +610,9 @@ dialog textarea {
 .category-chip.selected {
   background: #1da1f2;
   color: white;
+  border: 1px solid #1da1f2;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(29, 161, 242, 0.2);
 }
 
 .tweet-category option {
@@ -758,6 +783,20 @@ dialog textarea {
   max-width: 300px;
   height: 50px;
   overflow-y: auto;
+  background-color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 4px;
+}
+
+#batchCategory option:checked {
+  background-color: #1da1f2;
+  color: white;
+}
+
+#batchCategory option:hover {
+  background-color: #f8f9fa;
+  cursor: pointer;
   padding: 4px;
   border: 1px solid #dee2e6;
   border-radius: 4px;
@@ -773,4 +812,34 @@ dialog textarea {
 #batchCategory option:checked {
   background: #e8f4ff;
   color: #1da1f2;
+}
+.tweet-content {
+  margin-top: 8px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.tweet-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #1a73e8;
+  line-height: 1.4;
+}
+
+.tweet-text {
+  font-size: 14px;
+  color: #5f6368;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.tweet-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #80868b;
+  padding-top: 12px;
+  border-top: 1px solid #f1f3f4;
 }

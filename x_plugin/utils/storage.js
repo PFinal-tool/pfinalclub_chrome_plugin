@@ -93,15 +93,15 @@ class TweetStorage {
     return tweets.filter(t => t.selected);
   }
 
-  static async toggleTweetSelection(tweetId) {
+  static async toggleTweetSelection(tweetId, selected = null) {
     const tweets = await this.getAllTweets();
     const index = tweets.findIndex(t => t.id === tweetId);
     
     if (index !== -1) {
-      tweets[index].selected = !tweets[index].selected;
+      tweets[index].selected = selected !== null ? selected : !tweets[index].selected;
       await chrome.storage.local.set({ tweets });
     }
   }
 }
 
-export default TweetStorage; 
+export default TweetStorage;
